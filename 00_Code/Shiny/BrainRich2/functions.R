@@ -37,19 +37,20 @@ plot_results <- function(results,plot_type){
     }
     if(plot_type=="Effect Sizes"){
         if("z_scores"%in%colnames(results)){
-            return(ggplot(results,aes(Lvl5,z_scores,fill=Significance)) + geom_col() + coord_flip() + theme_classic() + xlab(""))
+            return(ggplot(results,aes(Lvl5,z_scores,fill=Significance)) + geom_col() + coord_flip() + theme_classic() + xlab("") + ylab("Z-scores"))
         }
         if("estimate"%in%colnames(results)){
-            return(ggplot(results,aes(Lvl5,estimate,fill=Significance)) + geom_col() + coord_flip() + theme_classic() + xlab(""))
+            return(ggplot(results,aes(Lvl5,estimate,fill=Significance)) + geom_col() + coord_flip() + theme_classic() + xlab("") + ylab("Beta"))
         }
         if("odds_ratio"%in%colnames(results)){
-            return(ggplot(results,aes(Lvl5,odds_ratio,fill=Significance)) + geom_col() + coord_flip() + theme_classic() + xlab(""))
+            return(ggplot(results,aes(Lvl5,odds_ratio,fill=Significance)) + geom_col() + coord_flip() + theme_classic() + xlab("") + ylab("Odds ratio"))
         }
     }
-    if(plot_type=="-log10(P)"){
-        return(ggplot(results,aes(Lvl5,-log10(p),fill=Significance)) + geom_col() + coord_flip() + theme_classic() + xlab(""))
+    if(plot_type=="-log10(pvalue)"){
+        return(ggplot(results,aes(Lvl5,-log10(p),fill=Significance)) + geom_col() + coord_flip() + theme_classic() + xlab("") + ylab(expression('-log'[10]*'(pvalue)')))
     }
 }
+
 #Perform Fisher's exact test to test whether the gene set is enriched among the 10% most specific genes
 fisher_test <- function(d,pathway) {
     d <- d %>% gather(Lvl5,spe_10k,-Gene,-gene_id,-entrez_id) %>% 
@@ -153,4 +154,38 @@ parse_dataset_name <- function(dataset_path){
     name <- gsub(".1to1.norm.txt.gz","", name)
     name <- gsub(".norm.txt.gz","", name)
     name <- gsub(".all.norm.txt.gz","", name)
+}
+
+# Heatmap
+
+plot_heatmap <- function(d,pathway){
+    
+    d <- d %>% gather(Lvl5,spe_10k,-Gene,-gene_id,-entrez_id)
+    
+    pathway <- pathway  %>% 
+        mutate(Pathway=1) %>% 
+        select(1,Pathway)
+    
+    # Select column with matching names
+    n_genes_symbol <- sum(pathway[[1]]%in%d$Gene)
+    n_genes_ensembl <- sum(pathway[[1]]%in%d$gene_id)
+    n_genes_entrez<- sum(pathway[[1]]%in%d$entrez_id)
+    
+    gene_column <- which.max(c(n_genes_symbol,n_genes_ensembl,n_genes_entrez))
+    colnames(pathway)[1] <- colnames(d)[gene_column]
+    
+    # Add Pathway information to specificity data
+    d <- left_join(d,pathway,by=colnames(d)[gene_column])
+    d <- mutate(d,Pathway=ifelse(is.na(Pathway),0,1))
+    
+    d <- d %>% group_by(Lvl5) %>% mutate(spe_10k_z = scale(spe_10k)) %>% filter(Pathway==1) %>% ungroup()
+    
+    d <- d %>% select(-Pathway,-spe_10k) %>% spread(Lvl5,spe_10k_z) %>% select(-Gene,-gene_id,-entrez_id) %>% t(.)
+    if (nrow(d)<100){
+        return(pheatmap::pheatmap(d))
+    }
+    if (nrow(d)>=100){
+        return(pheatmap::pheatmap(d,fontsize=3))
+        
+    }
 }

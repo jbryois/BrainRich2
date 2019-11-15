@@ -11,6 +11,9 @@ library(broom)
 # Load file with helper functions
 source(file = "functions.R")
 
+#options to increase max size of the file to be loaded
+options(shiny.maxRequestSize=90*1024^2) 
+
 # Define server logic
 shinyServer(function(input, output) {
 
@@ -66,6 +69,11 @@ shinyServer(function(input, output) {
     output$ewce <- renderPlot({
         plot_results(compute_EWCE(),input$plot_type)
         }, height = 600)
+    
+    # Plot heatmap
+    output$heatmap <- renderPlot({
+        plot_heatmap(dataset(),gene_list())
+    }, height = 600)
     
     #Download table regression
     output$save_res_reg <- downloadHandler(

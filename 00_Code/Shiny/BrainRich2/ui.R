@@ -7,6 +7,7 @@
 library(shiny)
 library(shinythemes)
 library(tidyverse)
+library(readxl)
 library(broom)
 
 # Define UI for application
@@ -25,8 +26,8 @@ ui <- fluidPage(
         sidebarPanel(
             h4(strong("Gene Set Enrichment in Brain Cell Types")),
             h5("Please input a file with your gene list (first column)."),
-            h5("The app works with ensembl, symbol or entrez ids."),
-            h5("An example gene set can be found",a("here",href="../../../03_Example/cahoy_oligodendrocyte.txt")),
+            h5("The app works with ensembl, symbol or entrez gene ids."),
+            h5("An example gene set can be found",a("here",href="https://raw.githubusercontent.com/jbryois/BrainRich2/master/03_Example/cahoy_oligodendrocyte.txt")),
             
             # Input: Select type of delimiter for file to be uploaded
             radioButtons('sep', 'Separator',
@@ -55,8 +56,8 @@ ui <- fluidPage(
             
             # Input: Select plot type
             radioButtons("plot_type", label = h3("Plot Type"),
-                         choices = list("-log10(P)" = "-log10(P)","Effect Sizes" = "Effect Sizes"), 
-                         selected = "-log10(P)"),
+                         choices = list("-log10(pvalue)" = "-log10(pvalue)","Effect Sizes" = "Effect Sizes"), 
+                         selected = "-log10(pvalue)"),
         ),
         
         # Main panel for displaying outputs ----
@@ -84,14 +85,18 @@ ui <- fluidPage(
                         ),
                         tabPanel("Enrichment EWCE", fluid = TRUE,
                                  mainPanel(
-                                     h5("Tests whether the average specificity of the gene list is greater than expected by chance ",
-                                        a("(Ref)", href="https://www.frontiersin.org/articles/10.3389/fnins.2016.00016/full"),"."),
+                                     h5("Tests whether the average specificity of the gene list is greater than expected by chance"),
                                      h5("Selects 10'000 random gene lists of the same size to estimate enrichment."),
                                      strong("Please be patient, this may take a while."),
                                      br(),
                                      downloadButton('save_res_ewce',label = "Save Table"),
                                      downloadButton('save_plot_ewce',label = "Save Plot"),
                                      plotOutput("ewce")      
+                                 )),
+                        tabPanel("Heatmap", fluid = TRUE,
+                                 mainPanel(
+                                     h5("Heatmap of the specificity metrics (z-scaled accross all genes for each tissue)."),
+                                     plotOutput("heatmap")      
                                  )),
                         tabPanel("References", fluid = TRUE,
                                  mainPanel(
@@ -102,9 +107,9 @@ ui <- fluidPage(
                                      h5(a("GTEx v7",href="https://www.nature.com/articles/nature24277")),
                                      h5(a("GTEx v8",href="https://www.biorxiv.org/content/10.1101/787903v1")),
                                      h3("Methods:"),
-                                     h5(a("Skene et al. 2016",href="https://www.frontiersin.org/articles/10.3389/fnins.2016.00016/full")),
+                                     h5(a("EWCE",href="https://www.frontiersin.org/articles/10.3389/fnins.2016.00016/full")),
                                      h3("Code:"),
-                                     h5(a("Github",href=""))
+                                     h5(a("Github",href="https://github.com/jbryois/BrainRich2"))
                                  )
                         )
             ),
