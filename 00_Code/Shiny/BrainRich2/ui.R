@@ -45,14 +45,19 @@ ui <- fluidPage(
             
             # Input: Select Dataset to use
             selectInput("select", label = h3("Select Dataset"), 
-                        choices = list("Zeisel et al. (2018) lvl4" = "../../../02_Processed/Zeisel.lvl4.1to1.norm.txt.gz",
-                                       "Zeisel et al. (2018) lvl5" = "../../../02_Processed/Zeisel.1to1.norm.txt.gz",
-                                       "Skene et al. (2018) lvl1" = "../../../02_Processed/Skene_lvl1.1to1.norm.txt.gz",
-                                       "Skene et al. (2018) lvl2" = "../../../02_Processed/Skene_lvl2.1to1.norm.txt.gz",
-                                       "Habib et al. (2017)" = "../../../02_Processed/Habib.norm.txt.gz",
-                                       "GTex v7" = "../../../02_Processed/GTEx.v7.all.norm.txt.gz", 
-                                       "GTex v8" = "../../../02_Processed/GTEx.v8.all.norm.txt.gz"),
-                        selected = "../../../02_Processed/Zeisel.lvl4.1to1.norm.txt.gz"),
+                        choices = list("Zeisel et al. (2018) lvl2" = "Data/Zeisel.lvl2.1to1.norm.txt.gz",
+                                       "Zeisel et al. (2018) lvl3" = "Data/Zeisel.lvl3.1to1.norm.txt.gz",
+                                       "Zeisel et al. (2018) lvl4" = "Data/Zeisel.lvl4.1to1.norm.txt.gz",
+                                       "Zeisel et al. (2018) lvl5" = "Data/Zeisel.1to1.norm.txt.gz",
+                                       "Skene et al. (2018) lvl1" = "Data/Skene_lvl1.1to1.norm.txt.gz",
+                                       "Skene et al. (2018) lvl2" = "Data/Skene_lvl2.1to1.norm.txt.gz",
+                                       "Saunders et al. (2018) lvl1" = "Data/Saunders.lvl1.1to1.norm.txt.gz",
+                                       "Saunders et al. (2018) lvl2" = "Data/Saunders.lvl2.1to1.norm.txt.gz",
+                                       "Saunders et al. (2018) lvl3" = "Data/Saunders.lvl3.1to1.norm.txt.gz",
+                                       "Habib et al. (2017)" = "Data/Habib.norm.txt.gz",
+                                       "GTex v7" = "Data/GTEx.v7.all.norm.txt.gz", 
+                                       "GTex v8" = "Data/GTEx.v8.all.norm.txt.gz"),
+                        selected = "Data/Zeisel.lvl4.1to1.norm.txt.gz"),
             
             # Input: Select plot type
             radioButtons("plot_type", label = h3("Plot Type"),
@@ -95,7 +100,9 @@ ui <- fluidPage(
                                  )),
                         tabPanel("Heatmap", fluid = TRUE,
                                  mainPanel(
-                                     h5("Heatmap of the specificity metrics (z-scaled accross all genes for each tissue)."),
+                                     h5("Heatmap of the specificity metrics by decile."),
+                                     h5("1 = lowest decile, 10 = top decile"),
+                                     h5("X-axis: genes in the gene set"),
                                      plotOutput("heatmap")      
                                  )),
                         tabPanel("References", fluid = TRUE,

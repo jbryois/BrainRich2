@@ -43,7 +43,7 @@ plot_results <- function(results,plot_type){
             return(ggplot(results,aes(Lvl5,estimate,fill=Significance)) + geom_col() + coord_flip() + theme_classic() + xlab("") + ylab("Beta"))
         }
         if("odds_ratio"%in%colnames(results)){
-            return(ggplot(results,aes(Lvl5,odds_ratio,fill=Significance)) + geom_col() + coord_flip() + theme_classic() + xlab("") + ylab("Odds ratio"))
+            return(ggplot(results,aes(Lvl5,odds_ratio,fill=Significance)) + geom_col() + coord_flip() + theme_classic() + xlab("") + ylab("Odds ratio") + geom_hline(yintercept = 1))
         }
     }
     if(plot_type=="-log10(pvalue)"){
@@ -150,14 +150,13 @@ ewce <- function(d,gene_set,name=NULL,number_of_iteration=9999) {
 
 # Parse dataset name
 parse_dataset_name <- function(dataset_path){
-    name <- gsub("../../../02_Processed/","", dataset_path)
+    name <- gsub("Data/","", dataset_path)
     name <- gsub(".1to1.norm.txt.gz","", name)
     name <- gsub(".norm.txt.gz","", name)
     name <- gsub(".all.norm.txt.gz","", name)
 }
 
 # Heatmap
-
 plot_heatmap <- function(d,pathway){
     
     d <- d %>% gather(Lvl5,spe_10k,-Gene,-gene_id,-entrez_id)
@@ -178,9 +177,9 @@ plot_heatmap <- function(d,pathway){
     d <- left_join(d,pathway,by=colnames(d)[gene_column])
     d <- mutate(d,Pathway=ifelse(is.na(Pathway),0,1))
     
-    d <- d %>% group_by(Lvl5) %>% mutate(spe_10k_z = scale(spe_10k)) %>% filter(Pathway==1) %>% ungroup()
+    d <- d %>% group_by(Lvl5) %>% mutate(spe_10k_bin = ntile(spe_10k,10)) %>% filter(Pathway==1) %>% ungroup()
     
-    d <- d %>% select(-Pathway,-spe_10k) %>% spread(Lvl5,spe_10k_z) %>% select(-Gene,-gene_id,-entrez_id) %>% t(.)
+    d <- d %>% select(-Pathway,-spe_10k) %>% spread(Lvl5,spe_10k_bin) %>% select(-Gene,-gene_id,-entrez_id) %>% t(.)
     if (nrow(d)<100){
         return(pheatmap::pheatmap(d))
     }
