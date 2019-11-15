@@ -40,7 +40,7 @@ plot_results <- function(results,plot_type){
             return(ggplot(results,aes(Lvl5,z_scores,fill=Significance)) + geom_col() + coord_flip() + theme_classic() + xlab("") + ylab("Z-scores"))
         }
         if("estimate"%in%colnames(results)){
-            return(ggplot(results,aes(Lvl5,estimate,fill=Significance)) + geom_col() + coord_flip() + theme_classic() + xlab("") + ylab("Beta"))
+            return(ggplot(results,aes(Lvl5,estimate,col=Significance)) + geom_point() + geom_errorbar(aes(ymax = estimate + std.error, ymin = estimate - std.error)) + coord_flip() + theme_classic() + xlab("") + ylab("Beta"))
         }
         if("odds_ratio"%in%colnames(results)){
             return(ggplot(results,aes(Lvl5,odds_ratio,fill=Significance)) + geom_col() + coord_flip() + theme_classic() + xlab("") + ylab("Odds ratio") + geom_hline(yintercept = 1))
