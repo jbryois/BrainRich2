@@ -111,6 +111,7 @@ ui <- fluidPage(
                                      h5(a("Zeisel et al. 2018",href="https://www.cell.com/cell/fulltext/S0092-8674(18)30789-X")),
                                      h5(a("Skene et al. 2018",href="https://www.nature.com/articles/s41588-018-0129-5")),
                                      h5(a("Habib et al. 2017",href="https://www.nature.com/articles/nmeth.4407")),
+                                     h5(a("Saunders et al. 2018",href="https://www.sciencedirect.com/science/article/pii/S0092867418309553")),
                                      h5(a("GTEx v7",href="https://www.nature.com/articles/nature24277")),
                                      h5(a("GTEx v8",href="https://www.biorxiv.org/content/10.1101/787903v1")),
                                      h3("Methods:"),
