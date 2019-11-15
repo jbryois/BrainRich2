@@ -1,0 +1,255 @@
+---
+title: "GTEx"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load Data
+
+```{R, load data,message=FALSE, warning=FALSE}
+library(tidyverse)
+```
+
+### Function for Fisher's exact test
+
+```{r}
+fisher_test <- function(d,pathway) {
+    d <- read_tsv(d) %>% gather(Lvl5,spe_10k,-Gene,-gene_id,-entrez_id) %>% 
+      mutate(spe_10k_top10=ifelse(spe_10k>=quantile(spe_10k,0.9),1,0))
+ 
+  pathway <- pathway  %>% 
+  mutate(Pathway=1) %>% 
+  select(1,Pathway)
+  
+  # Select column with matching names
+  n_genes_symbol <- sum(pathway[[1]]%in%d$Gene)
+  n_genes_ensembl <- sum(pathway[[1]]%in%d$gene_id)
+  n_genes_entrez<- sum(pathway[[1]]%in%d$entrez_id)
+
+  gene_column <- which.max(c(n_genes_symbol,n_genes_ensembl,n_genes_entrez))
+  colnames(pathway)[1] <- colnames(d)[gene_column]
+  
+  # Add Pathway information to specificity data
+  d <- left_join(d,pathway,by=colnames(d)[gene_column])
+  d <- mutate(d,Pathway=ifelse(is.na(Pathway),0,1))
+  
+  fisher <- d %>% group_by(Lvl5) %>% 
+  summarise(
+    odds_ratio=fisher.test(spe_10k_top10,Pathway,alternative="greater")$estimate,
+            p=fisher.test(spe_10k_top10,Pathway,alternative="greater")$p.value
+    ) %>%
+  mutate(fdr=p.adjust(p,method="fdr")) %>%
+  arrange(p) %>%
+  mutate(Significance=ifelse(fdr<0.05,"5% FDR", "Not Significant")) %>%
+  mutate(Lvl5=factor(Lvl5,levels=rev(Lvl5)))
+}
+```
+
+### Function for Plotting results
+
+```{r}
+plot_fisher_log10P <- function(fisher,out,width=6,height=10) {
+  p <- ggplot(fisher,aes(Lvl5,-log10(p),fill=Significance)) + geom_col() + coord_flip() + theme_classic() + xlab("")
+  ggsave(p,filename=out,width=width,height=height)
+}
+```
+
+```{r}
+plot_fisher_odds <- function(fisher,out,width=6,height=10) {
+  p <- ggplot(fisher,aes(Lvl5,odds_ratio,fill=Significance)) + geom_col() + coord_flip() + theme_classic() + xlab("") + geom_hline(yintercept = 1)
+  ggsave(p,filename=out,width=width,height=height)
+}
+```
+
+### Pathway analysis
+
+### Loading
+
+```{r}
+most <- read_tsv("~/Documents/Data/Gene_sets/Shuyang_most_least_conserved/genes_MOST_conserved_exon_191107.txt")
+least <- read_tsv("~/Documents/Data/Gene_sets/Shuyang_most_least_conserved/genes_LEAST_conserved_exon_191107.txt")
+```
+
+### Create directory for results
+
+#### Skene Lvl1
+
+```{r}
+dir.create("../../01_Plots/Skene_lvl1/ShuyangConserved/Fisher/",recursive = TRUE,showWarnings = FALSE)
+```
+
+### Most Conserved
+
+```{r}
+most_conserved <- fisher_test("../../02_Processed/Skene_lvl1.1to1.norm.txt.gz",most)
+most_conserved %>% write_tsv("../../01_Plots/Skene_lvl1/ShuyangConserved/Fisher/most_conserved.fisher.txt")
+most_conserved %>% plot_fisher_log10P(.,"../../01_Plots/Skene_lvl1/ShuyangConserved/Fisher/most_conserved.fisher.log10p.pdf")
+most_conserved %>% plot_fisher_odds(.,"../../01_Plots/Skene_lvl1/ShuyangConserved/Fisher/most_conserved.fisher.oddsratio.pdf")
+```
+
+### Least Conserved
+
+```{r}
+least_conserved <- fisher_test("../../02_Processed/Skene_lvl1.1to1.norm.txt.gz",least)
+least_conserved %>% write_tsv("../../01_Plots/Skene_lvl1/ShuyangConserved/Fisher/least_conserved.fisher.txt")
+least_conserved %>% plot_fisher_log10P(.,"../../01_Plots/Skene_lvl1/ShuyangConserved/Fisher/least_conserved.fisher.log10p.pdf")
+least_conserved %>% plot_fisher_odds(.,"../../01_Plots/Skene_lvl1/ShuyangConserved/Fisher/least_conserved.fisher.oddsratio.pdf")
+```
+
+#### GTEx v7
+
+```{r}
+dir.create("../../01_Plots/GTEx_v7/ShuyangConserved/Fisher/",recursive = TRUE,showWarnings = FALSE)
+```
+
+### Most Conserved
+
+```{r}
+most_conserved <- fisher_test("../../02_Processed/GTEx.v7.all.norm.txt.gz",most)
+most_conserved %>% write_tsv("../../01_Plots/GTEx_v7/ShuyangConserved/Fisher/most_conserved.fisher.txt")
+most_conserved %>% plot_fisher_log10P(.,"../../01_Plots/GTEx_v7/ShuyangConserved/Fisher/most_conserved.fisher.log10p.pdf")
+most_conserved %>% plot_fisher_odds(.,"../../01_Plots/GTEx_v7/ShuyangConserved/Fisher/most_conserved.fisher.oddsratio.pdf")
+```
+
+### Least Conserved
+
+```{r}
+least_conserved <- fisher_test("../../02_Processed/GTEx.v7.all.norm.txt.gz",least)
+least_conserved %>% write_tsv("../../01_Plots/GTEx_v7/ShuyangConserved/Fisher/least_conserved.fisher.txt")
+least_conserved %>% plot_fisher_log10P(.,"../../01_Plots/GTEx_v7/ShuyangConserved/Fisher/least_conserved.fisher.log10p.pdf")
+least_conserved %>% plot_fisher_odds(.,"../../01_Plots/GTEx_v7/ShuyangConserved/Fisher/least_conserved.fisher.oddsratio.pdf")
+```
+
+#### GTEx v7
+
+```{r}
+dir.create("../../01_Plots/GTEx_v8/ShuyangConserved/Fisher/",recursive = TRUE,showWarnings = FALSE)
+```
+
+### Most Conserved
+
+```{r}
+most_conserved <- fisher_test("../../02_Processed/GTEx.v8.all.norm.txt.gz",most)
+most_conserved %>% write_tsv("../../01_Plots/GTEx_v8/ShuyangConserved/Fisher/most_conserved.fisher.txt")
+most_conserved %>% plot_fisher_log10P(.,"../../01_Plots/GTEx_v8/ShuyangConserved/Fisher/most_conserved.fisher.log10p.pdf")
+most_conserved %>% plot_fisher_odds(.,"../../01_Plots/GTEx_v8/ShuyangConserved/Fisher/most_conserved.fisher.oddsratio.pdf")
+```
+
+### Least Conserved
+
+```{r}
+least_conserved <- fisher_test("../../02_Processed/GTEx.v8.all.norm.txt.gz",least)
+least_conserved %>% write_tsv("../../01_Plots/GTEx_v8/ShuyangConserved/Fisher/least_conserved.fisher.txt")
+least_conserved %>% plot_fisher_log10P(.,"../../01_Plots/GTEx_v8/ShuyangConserved/Fisher/least_conserved.fisher.log10p.pdf")
+least_conserved %>% plot_fisher_odds(.,"../../01_Plots/GTEx_v8/ShuyangConserved/Fisher/least_conserved.fisher.oddsratio.pdf")
+```
+
+#### Zeisel Level 4
+
+```{r}
+dir.create("../../01_Plots/Zeisel_lvl4//ShuyangConserved/Fisher/",recursive = TRUE,showWarnings = FALSE)
+```
+
+### Most Conserved
+
+```{r}
+most_conserved <- fisher_test("../../02_Processed/Zeisel.lvl4.1to1.norm.txt.gz",most)
+most_conserved %>% write_tsv("../../01_Plots/Zeisel_lvl4/ShuyangConserved/Fisher/most_conserved.fisher.txt")
+most_conserved %>% plot_fisher_log10P(.,"../../01_Plots/Zeisel_lvl4/ShuyangConserved/Fisher/most_conserved.fisher.log10p.pdf")
+most_conserved %>% plot_fisher_odds(.,"../../01_Plots/Zeisel_lvl4/ShuyangConserved/Fisher/most_conserved.fisher.oddsratio.pdf")
+```
+
+### Least Conserved
+
+```{r}
+least_conserved <- fisher_test("../../02_Processed/Zeisel.lvl4.1to1.norm.txt.gz",least)
+least_conserved %>% write_tsv("../../01_Plots/Zeisel_lvl4/ShuyangConserved/Fisher/least_conserved.fisher.txt")
+least_conserved %>% plot_fisher_log10P(.,"../../01_Plots/Zeisel_lvl4/ShuyangConserved/Fisher/least_conserved.fisher.log10p.pdf")
+least_conserved %>% plot_fisher_odds(.,"../../01_Plots/Zeisel_lvl4/ShuyangConserved/Fisher/least_conserved.fisher.oddsratio.pdf")
+```
+
+
+# Zeisel Level 5
+
+### Create directory for results
+
+```{r}
+dir.create("../../01_Plots/Zeisel_lvl5/ShuyangConserved/Fisher/",recursive = TRUE,showWarnings = FALSE)
+```
+
+### Most Conserved
+
+```{r}
+most_conserved <- fisher_test("../../02_Processed/Zeisel.1to1.norm.txt.gz",most)
+most_conserved %>% write_tsv("../../01_Plots/Zeisel_lvl5/ShuyangConserved/Fisher/most_conserved.fisher.txt")
+most_conserved %>% plot_fisher_log10P(.,"../../01_Plots/Zeisel_lvl5/ShuyangConserved/Fisher/most_conserved.fisher.log10p.pdf",height=30)
+most_conserved %>% plot_fisher_odds(.,"../../01_Plots/Zeisel_lvl5/ShuyangConserved/Fisher/most_conserved.fisher.estimate.pdf",height=30)
+```
+
+### Least Conserved
+
+```{r}
+least_conserved <- fisher_test("../../02_Processed/Zeisel.1to1.norm.txt.gz",least)
+least_conserved %>% write_tsv("../../01_Plots/Zeisel_lvl5/ShuyangConserved/Fisher/least_conserved.fisher.txt")
+least_conserved %>% plot_fisher_log10P(.,"../../01_Plots/Zeisel_lvl5/ShuyangConserved/Fisher/least_conserved.fisher.log10p.pdf",height=30)
+least_conserved %>% plot_fisher_odds(.,"../../01_Plots/Zeisel_lvl5/ShuyangConserved/Fisher/least_conserved.fisher.estimate.pdf",height=30)
+```
+
+# Habib
+
+### Create directory for results
+
+```{r}
+dir.create("../../01_Plots/Habib/ShuyangConserved/Fisher/",recursive = TRUE,showWarnings = FALSE)
+```
+
+### Most Conserved
+
+```{r}
+most_conserved <- fisher_test("../../02_Processed/Habib.norm.txt.gz",most)
+most_conserved %>% write_tsv("../../01_Plots/Habib/ShuyangConserved/Fisher/most_conserved.fisher.txt")
+most_conserved %>% plot_fisher_log10P(.,"../../01_Plots/Habib/ShuyangConserved/Fisher/most_conserved.fisher.log10p.pdf")
+most_conserved %>% plot_fisher_odds(.,"../../01_Plots/Habib/ShuyangConserved/Fisher/most_conserved.fisher.estimate.pdf")
+```
+
+### Least Conserved
+
+```{r}
+least_conserved <- fisher_test("../../02_Processed/Habib.norm.txt.gz",least)
+least_conserved %>% write_tsv("../../01_Plots/Habib/ShuyangConserved/Fisher/least_conserved.fisher.txt")
+least_conserved %>% plot_fisher_log10P(.,"../../01_Plots/Habib/ShuyangConserved/Fisher/least_conserved.fisher.log10p.pdf")
+least_conserved %>% plot_fisher_odds(.,"../../01_Plots/Habib/ShuyangConserved/Fisher/least_conserved.fisher.estimate.pdf")
+```
+
+# Lake
+
+### Create directory for results
+
+```{r}
+dir.create("../../01_Plots/Lake/ShuyangConserved/Fisher/",recursive = TRUE,showWarnings = FALSE)
+```
+
+### Most Conserved
+
+```{r}
+most_conserved <- fisher_test("../../02_Processed/Lake.norm.txt.gz",most)
+most_conserved %>% write_tsv("../../01_Plots/Lake/ShuyangConserved/Fisher/most_conserved.fisher.txt")
+most_conserved %>% plot_fisher_log10P(.,"../../01_Plots/Lake/ShuyangConserved/Fisher/most_conserved.fisher.log10p.pdf",height=20)
+most_conserved %>% plot_fisher_odds(.,"../../01_Plots/Lake/ShuyangConserved/Fisher/most_conserved.fisher.estimate.pdf",height=20)
+```
+
+### Least Conserved
+
+```{r}
+least_conserved <- fisher_test("../../02_Processed/Lake.norm.txt.gz",least)
+least_conserved %>% write_tsv("../../01_Plots/Lake/ShuyangConserved/Fisher/least_conserved.fisher.txt")
+least_conserved %>% plot_fisher_log10P(.,"../../01_Plots/Lake/ShuyangConserved/Fisher/least_conserved.fisher.log10p.pdf",height=20)
+least_conserved %>% plot_fisher_odds(.,"../../01_Plots/Lake/ShuyangConserved/Fisher/least_conserved.fisher.estimate.pdf",height=20)
+```
+

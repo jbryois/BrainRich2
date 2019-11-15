@@ -1,0 +1,124 @@
+---
+title: "Single Cell Data Set - Lake 2018"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load Data
+
+### Load single cell dataset
+
+```{R, load data,message=FALSE, warning=FALSE}
+library(tidyverse)
+theme_set(theme_light())
+```
+
+```{r}
+cerebellum <- read_tsv("~/Documents/Data/Projects/Best_tissue2/Data/Lake2018/GSE97930_CerebellarHem_snDrop-seq_UMI_Count_Matrix_08-01-2017_sumUMI.txt")
+cerebellum <- mutate(cerebellum,tissue="Cerebellum")  %>% mutate(cell_type=paste0(cell_type," - ",tissue))
+```
+
+```{r}
+fc <- read_tsv("~/Documents/Data/Projects/Best_tissue2/Data/Lake2018/GSE97930_FrontalCortex_snDrop-seq_UMI_Count_Matrix_08-01-2017_sumUMI.txt")
+fc <- mutate(fc,tissue="Frontal Cortex") %>% mutate(cell_type=paste0(cell_type," - ",tissue))
+```
+
+```{r}
+vc <- read_tsv("~/Documents/Data/Projects/Best_tissue2/Data/Lake2018/GSE97930_VisualCortex_snDrop-seq_UMI_Count_Matrix_08-01-2017_sumUMI.txt")
+vc <- mutate(vc,tissue="Visual Cortex") %>% mutate(cell_type=paste0(cell_type," - ",tissue))
+```
+
+```{r}
+exp <- rbind(cerebellum,fc,vc)
+```
+
+```{r}
+exp_lvl5 <- exp %>% select(-tissue) %>% spread(cell_type,sumUMI)
+exp_lvl5[is.na(exp_lvl5)] <- 0
+exp_lvl5 <- gather(exp_lvl5,cell_type,sumUMI,`Ast - Cerebellum`:`Purk2 - Cerebellum`)
+exp_lvl5 <- exp_lvl5 %>% rename(Expr_sum_mean=sumUMI,Lvl5=cell_type)
+```
+
+```{r}
+exp_lvl5 <- exp_lvl5 %>% group_by(Lvl5) %>% mutate(total_umi=sum(Expr_sum_mean),
+                                          n_expressed=sum(Expr_sum_mean>0))
+exp_lvl5
+```
+
+
+### Scale to 10k molecules
+
+Each cell type is scaled to the same total number of molecules. 
+
+```{R, rm lowQ 34,message=F}
+exp_lvl5 <- exp_lvl5 %>% group_by(Lvl5) %>% mutate(Expr_sum_mean_scaled10k=Expr_sum_mean*10000/sum(Expr_sum_mean),
+       Expr_sum_mean_scaled1pergene=Expr_sum_mean*n_expressed/sum(Expr_sum_mean))
+```
+
+### Check 
+
+```{r}
+sumstats_final <- exp_lvl5 %>% group_by(Lvl5) %>% summarise(total_sum_umi_scaled10k=sum(Expr_sum_mean_scaled10k),total_sum_umi_scaled1pergene=sum(Expr_sum_mean_scaled1pergene))
+```
+
+```{r}
+all.equal(sumstats_final$total_sum_umi_scaled10k,rep(10000,63))
+```
+
+### Remove genes not expressed in any tissues
+
+```{r}
+g2keep <- exp_lvl5 %>% group_by(Gene) %>% summarise(sum_exp=sum(Expr_sum_mean)) %>% filter(sum_exp>0)
+exp_lvl5 <- filter(exp_lvl5,Gene%in%g2keep$Gene)
+```
+
+```{r}
+exp_lvl5 <- exp_lvl5 %>% group_by(Gene) %>% mutate(spe_10k=Expr_sum_mean_scaled10k/sum(Expr_sum_mean_scaled10k),
+                                        spe_1pergene=Expr_sum_mean_scaled1pergene/sum(Expr_sum_mean_scaled1pergene),
+                                        ) %>%
+  ungroup()
+```
+
+```{r}
+exp_lvl5 <- exp_lvl5 %>% group_by(Lvl5) %>% mutate(
+                    spe_10k_top10=ifelse(spe_10k>=quantile(spe_10k,0.9),1,0),
+                    spe_1pergene_top10=ifelse(spe_1pergene>=quantile(spe_1pergene,0.9),1,0),
+                    ) %>% ungroup()
+```
+
+# Add ENTREZ ID
+
+```{R,message=FALSE}
+entrez_ensembl <- AnnotationDbi::toTable(org.Hs.eg.db::org.Hs.egENSEMBL)
+entrez_symbol <- AnnotationDbi::toTable(org.Hs.eg.db::org.Hs.egSYMBOL)
+entrez_ensembl <- inner_join(entrez_ensembl,entrez_symbol)
+```
+
+Only keep genes with a unique entrez and ensembl id.
+
+```{r,message=FALSE}
+entrez_ensembl_unique_genes_entrez <- entrez_ensembl %>% count(gene_id) %>% filter(n==1)
+entrez_ensembl_unique_genes_ens <- entrez_ensembl %>% count(ensembl_id) %>% filter(n==1)
+entrez_ensembl_unique_genes_symbol <- entrez_ensembl %>% count(symbol) %>% filter(n==1)
+
+entrez_ensembl <- filter(entrez_ensembl,gene_id%in%entrez_ensembl_unique_genes_entrez$gene_id & ensembl_id %in% entrez_ensembl_unique_genes_ens$ensembl_id & symbol %in% entrez_ensembl_unique_genes_symbol$symbol)
+colnames(entrez_ensembl) <- c("entrez_id","gene_id","Gene")
+```
+
+```{r}
+exp_lvl5 <- left_join(exp_lvl5,entrez_ensembl,by="Gene")
+```
+
+### Write
+
+```{r}
+exp_lvl5 <-  select(exp_lvl5,Gene,gene_id,entrez_id,Lvl5,spe_10k) %>% spread(Lvl5,spe_10k)
+
+exp_lvl5 %>% write_tsv(gzfile("../../02_Processed/Lake.norm.txt.gz"))
+```

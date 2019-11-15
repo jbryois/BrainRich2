@@ -1,0 +1,105 @@
+---
+title: "gene_set_expression_check"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+# Level 1
+
+```{r}
+f <- "/Users/julienbryios/Documents/Data/Projects/Best_tissue2/Data/GTEx/GTEx_Analysis_2016-01-15_v7_RNASeQCv1.1.8_gene_median_tpm.gct"
+```
+
+```{r}
+exp <- read_tsv(f,skip=2)
+```
+
+```{R, load data 3,message=FALSE, warning=FALSE}
+exp_lvl5 <- gather(exp,key = Lvl5,value=Expr_sum_mean_raw,-gene_id,-Description) %>% as_tibble() %>% rename(Gene="Description")
+```
+
+```{r}
+exp_lvl5 <- exp_lvl5 %>% group_by(Lvl5) %>% mutate(n_expressed=sum(Expr_sum_mean_raw>0))
+```
+
+### Scale median expression
+
+```{r}
+exp_lvl5 <- exp_lvl5 %>% group_by(Lvl5) %>% mutate(
+                                Expr_sum_mean_scaled10k=Expr_sum_mean_raw*1e4/sum(Expr_sum_mean_raw),
+                                Expr_sum_mean_scaled1M=Expr_sum_mean_raw*1e6/sum(Expr_sum_mean_raw),
+                                Expr_sum_mean_scaled1pergene=Expr_sum_mean_raw*n_expressed/sum(Expr_sum_mean_raw)
+                                )
+```
+
+### Get ensembl gene name
+
+```{r}
+exp_lvl5 <- exp_lvl5 %>% mutate(gene_id=gsub("\\..+","",gene_id))
+```
+
+### Remove genes not expressed in any tissues
+
+```{r}
+g2keep <- exp_lvl5 %>% group_by(gene_id) %>% summarise(sum_exp=sum(Expr_sum_mean_raw)) %>% filter(sum_exp>0)
+exp_lvl5 <- filter(exp_lvl5,gene_id%in%g2keep$gene_id)
+```
+
+# keep protein coding genes only 
+
+```{r}
+gtf <- rtracklayer::import("../../00_Data/gencode.v26.GRCh38.genes.gtf") %>% as_tibble() %>% mutate(gene_id=gsub("\\..+","",gene_id))
+protein_coding <- filter(gtf,type=="gene") %>% filter(gene_type=="protein_coding")
+exp_lvl5 <- filter(exp_lvl5,gene_id%in%protein_coding$gene_id)
+```
+
+#Compute specificity metrics
+
+```{r}
+exp_lvl5 <- exp_lvl5 %>% group_by(gene_id) %>% mutate(spe_raw=Expr_sum_mean_raw/sum(Expr_sum_mean_raw),
+                                        spe_10k=Expr_sum_mean_scaled10k/sum(Expr_sum_mean_scaled10k),
+                                        spe_1M=Expr_sum_mean_scaled1M/sum(Expr_sum_mean_scaled1M),
+                                        spe_1pergene=Expr_sum_mean_scaled1pergene/sum(Expr_sum_mean_scaled1pergene),
+                                        ) %>%
+  ungroup()
+```
+
+```{r}
+exp_lvl5 <- exp_lvl5 %>% group_by(Lvl5) %>% mutate(
+                    spe_raw_top10=ifelse(spe_raw>=quantile(spe_raw,0.9),1,0),
+                    spe_10k_top10=ifelse(spe_10k>=quantile(spe_10k,0.9),1,0),
+                    spe_1M_top10=ifelse(spe_1M>=quantile(spe_1M,0.9),1,0),
+                    spe_1pergene_top10=ifelse(spe_1pergene>=quantile(spe_1pergene,0.9),1,0),
+                    )
+```
+
+# Add ENTREZ ID
+
+```{R,message=FALSE}
+entrez_ensembl <- AnnotationDbi::toTable(org.Hs.eg.db::org.Hs.egENSEMBL)
+```
+
+Only keep genes with a unique entrez and ensembl id.
+
+```{r,message=FALSE}
+entrez_ensembl_unique_genes_entrez <- entrez_ensembl %>% count(gene_id) %>% filter(n==1)
+entrez_ensembl_unique_genes_ens <- entrez_ensembl %>% count(ensembl_id) %>% filter(n==1)
+entrez_ensembl <- filter(entrez_ensembl,gene_id%in%entrez_ensembl_unique_genes_entrez$gene_id & ensembl_id %in% entrez_ensembl_unique_genes_ens$ensembl_id)
+colnames(entrez_ensembl) <- c("entrez_id","gene_id")
+exp_lvl5 <- left_join(exp_lvl5,entrez_ensembl,by="gene_id") %>% as.tibble()
+```
+
+### Write
+
+```{r}
+exp_lvl5 <-  select(exp_lvl5,Gene,gene_id,entrez_id,Lvl5,spe_10k) %>% spread(Lvl5,spe_10k)
+#exp_lvl5 <- exp_lvl5 %>% select(Gene,gene_id,entrez_id,Lvl5,Expr_sum_mean_scaled10k,spe_10k,spe_10k_top10)
+exp_lvl5 %>% write_tsv(gzfile("../../02_Processed//GTEx.v7.all.norm.txt.gz"))
+```

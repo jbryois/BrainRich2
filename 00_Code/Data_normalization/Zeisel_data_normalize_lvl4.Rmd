@@ -1,0 +1,133 @@
+---
+title: "gene_set_expression_check"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{R, load data,message=FALSE, warning=FALSE}
+library(tidyverse)
+library("rhdf5")
+library("snow")
+file="/Users/julienbryios/Documents/Data/Projects/Best_tissue2/Data/Sten Whole Brain 10xGenomics 2018/L5_All.agg.loom"
+h5f <- H5Fopen(file)
+exp <- as.data.frame(t(h5f$matrix))
+exp$Gene <- h5f$row_attrs$Gene
+```
+
+Only keep genes with a unique name
+
+```{R, load data 3,message=FALSE, warning=FALSE}
+genes_unique <- exp %>% count(Gene) %>% filter(n==1)
+exp <- exp %>% filter(Gene%in%genes_unique$Gene)
+exp <- gather(exp,key = column,value=Expr,-Gene) %>% as.tibble()
+```
+
+```{R, Transform,message=F}
+cell_types <- cbind(column=as.character(paste0("V",1:265)),
+                    Lvl1=h5f$col_attrs$TaxonomyRank1,
+                    Lvl2=h5f$col_attrs$TaxonomyRank2,
+                    Lvl3=h5f$col_attrs$TaxonomyRank3,
+                    Lvl4=h5f$col_attrs$TaxonomyRank4,
+                    Lvl5=h5f$col_attrs$ClusterName,
+                    Description=h5f$col_attrs$Description,
+                    NCells=h5f$col_attrs$NCells) %>% as.tibble() %>% mutate(NCells=as.numeric(NCells))
+
+exp_lvl5 <- inner_join(exp,cell_types,by="column") %>% as.tibble() %>% ungroup() %>% rename(Expr_sum_mean=Expr)
+```
+
+### Load mouse to human 1to1 orthologs
+
+File downloaded from: http://www.informatics.jax.org/homology.shtml and parsed.
+
+```{R, l1,message=F}
+m2h <- read_tsv("/Users/julienbryios/Documents/Data/Projects/Best_tissue2/Data/m2h.txt",col_types = "iccccc") %>% select(musName,geneName,entrez) %>%
+  rename(Gene=musName) %>% rename(ENTREZ=entrez)
+```
+
+```{r}
+exp_lvl5 <- exp_lvl5 %>% group_by(Gene,Lvl4) %>% summarise(Expr_sum_mean=mean(Expr_sum_mean)) %>% ungroup() %>% rename(Lvl5=Lvl4)
+```
+
+
+```{r}
+exp_lvl5 <- exp_lvl5 %>% group_by(Lvl5) %>% mutate(total_umi=sum(Expr_sum_mean),
+                                          n_expressed=sum(Expr_sum_mean>0))
+exp_lvl5
+```
+
+### Scale to 10k molecules
+
+Each cell type is scaled to the same total number of molecules. 
+
+```{R, rm lowQ 34,message=F}
+exp_lvl5 <- exp_lvl5 %>% group_by(Lvl5) %>% mutate(Expr_sum_mean_scaled10k=Expr_sum_mean*10000/sum(Expr_sum_mean),
+       Expr_sum_mean_scaled1pergene=Expr_sum_mean*n_expressed/sum(Expr_sum_mean))
+```
+
+### Check 
+
+```{r}
+sumstats_final <- exp_lvl5 %>% group_by(Lvl5) %>% summarise(total_sum_umi_scaled10k=sum(Expr_sum_mean_scaled10k),total_sum_umi_scaled1pergene=sum(Expr_sum_mean_scaled1pergene))
+```
+
+```{r}
+all.equal(sumstats_final$total_sum_umi_scaled10k,rep(10000,24))
+```
+
+```{r}
+exp_lvl5 <- inner_join(exp_lvl5,m2h)
+```
+
+### Remove genes not expressed in any tissues
+
+```{r}
+g2keep <- exp_lvl5 %>% group_by(Gene) %>% summarise(sum_exp=sum(Expr_sum_mean)) %>% filter(sum_exp>0)
+exp_lvl5 <- filter(exp_lvl5,Gene%in%g2keep$Gene)
+```
+
+```{r}
+exp_lvl5 <- exp_lvl5 %>% group_by(Gene) %>% mutate(spe_10k=Expr_sum_mean_scaled10k/sum(Expr_sum_mean_scaled10k),
+                                        spe_1pergene=Expr_sum_mean_scaled1pergene/sum(Expr_sum_mean_scaled1pergene),
+                                        ) %>%
+  ungroup()
+```
+
+```{r}
+exp_lvl5 <- exp_lvl5 %>% group_by(Lvl5) %>% mutate(
+                    spe_10k_top10=ifelse(spe_10k>=quantile(spe_10k,0.9),1,0),
+                    spe_1pergene_top10=ifelse(spe_1pergene>=quantile(spe_1pergene,0.9),1,0),
+                    ) %>% ungroup()
+```
+
+# Add ENTREZ ID
+
+```{R,message=FALSE}
+entrez_ensembl <- AnnotationDbi::toTable(org.Hs.eg.db::org.Hs.egENSEMBL)
+```
+
+Only keep genes with a unique entrez and ensembl id.
+
+```{r,message=FALSE}
+entrez_ensembl_unique_genes_entrez <- entrez_ensembl %>% count(gene_id) %>% filter(n==1)
+entrez_ensembl_unique_genes_ens <- entrez_ensembl %>% count(ensembl_id) %>% filter(n==1)
+entrez_ensembl <- filter(entrez_ensembl,gene_id%in%entrez_ensembl_unique_genes_entrez$gene_id & ensembl_id %in% entrez_ensembl_unique_genes_ens$ensembl_id)
+colnames(entrez_ensembl) <- c("entrez_id","gene_id")
+```
+
+```{r}
+exp_lvl5 <- exp_lvl5 %>% rename(mouseGene=Gene,Gene=geneName,entrez_id=ENTREZ)
+```
+
+```{r}
+exp_lvl5 <- left_join(exp_lvl5,entrez_ensembl,by="entrez_id")
+```
+
+### Write
+
+```{r}
+exp_lvl5 <-  select(exp_lvl5,Gene,gene_id,entrez_id,Lvl5,spe_10k) %>% spread(Lvl5,spe_10k)
+exp_lvl5 %>% write_tsv(gzfile("../../02_Processed/Zeisel.lvl4.1to1.norm.txt.gz"))
+```
