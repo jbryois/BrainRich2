@@ -1,8 +1,6 @@
-# This is the server logic of a Shiny web application. You can run the
-# application by clicking 'Run App' above.
-
+# You can run the application by clicking 'Run App' above (RStudio)
 # Author: Julien Bryois
-# Date: 14.11.2019
+# Date: 18.11.2019
 
 library(shiny)
 library(tidyverse)
@@ -12,7 +10,7 @@ library(R.utils)
 # Load file with helper functions
 source(file = "functions.R")
 
-#options to increase max size of the file to be loaded
+# Option to increase max size of the file to be loaded
 options(shiny.maxRequestSize=90*1024^2) 
 
 # Define server logic

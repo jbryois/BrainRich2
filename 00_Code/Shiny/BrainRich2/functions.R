@@ -3,11 +3,6 @@ reg <- function(d,pathway) {
     
     # Scale data (substracts mean and divide by standard deviation)
     d[-c(1,2,3)] <- apply(d[-c(1,2,3)],2,scale)
-
-    # Read pathway file
-    pathway <- pathway  %>% 
-        mutate(Pathway=1) %>% 
-        select(1,Pathway)
     
     # Select column with matching names
     n_genes_symbol <- sum(pathway[[1]]%in%d$Gene)
@@ -15,8 +10,7 @@ reg <- function(d,pathway) {
     n_genes_entrez<- sum(pathway[[1]]%in%d$entrez_id)
     
     gene_column <- which.max(c(n_genes_symbol,n_genes_ensembl,n_genes_entrez))
-    colnames(pathway)[1] <- colnames(d)[gene_column]
-    
+
     # Only keep genes in Pathway 
     d <- d %>% filter(.[[gene_column]]%in%pathway[[1]])
     
