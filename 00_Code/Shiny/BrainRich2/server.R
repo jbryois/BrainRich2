@@ -7,6 +7,7 @@
 library(shiny)
 library(tidyverse)
 library(broom)
+library(R.utils)
 
 # Load file with helper functions
 source(file = "functions.R")
@@ -37,7 +38,7 @@ shinyServer(function(input, output) {
     dataset <- reactive({
         inFile <- input$select
         req(inFile)
-        d <- read_tsv(inFile)
+        d <- data.table::fread(inFile,data.table=FALSE)
     }) 
     
     # Get regression results

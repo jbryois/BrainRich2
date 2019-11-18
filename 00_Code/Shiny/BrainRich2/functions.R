@@ -1,12 +1,14 @@
 #Perform linear regression testing whether mean specificity of gene set is higher than average.
 reg <- function(d,pathway) {
-    d <- d %>% gather(Lvl5,spe_10k,-Gene,-gene_id,-entrez_id)
     
+    # Scale data (substracts mean and divide by standard deviation)
+    d[-c(1,2,3)] <- apply(d[-c(1,2,3)],2,scale)
+
     # Read pathway file
     pathway <- pathway  %>% 
         mutate(Pathway=1) %>% 
         select(1,Pathway)
-
+    
     # Select column with matching names
     n_genes_symbol <- sum(pathway[[1]]%in%d$Gene)
     n_genes_ensembl <- sum(pathway[[1]]%in%d$gene_id)
@@ -15,11 +17,11 @@ reg <- function(d,pathway) {
     gene_column <- which.max(c(n_genes_symbol,n_genes_ensembl,n_genes_entrez))
     colnames(pathway)[1] <- colnames(d)[gene_column]
     
-    # Add Pathway information to specificity data
-    d <- left_join(d,pathway,by=colnames(d)[gene_column])
-    d <- mutate(d,Pathway=ifelse(is.na(Pathway),0,1))
+    # Only keep genes in Pathway 
+    d <- d %>% filter(.[[gene_column]]%in%pathway[[1]])
     
-    d <- d %>% group_by(Lvl5) %>% mutate(spe_10k_z = scale(spe_10k)) %>% filter(Pathway==1)
+    # Gather data
+    d <- gather(d,Lvl5,spe_10k_z,-Gene,-gene_id,-entrez_id)
     
     res <- tidy(lm(spe_10k_z ~0 + Lvl5,data=d)) %>% mutate(term=gsub("Lvl5","",term)) %>%
         rename(p=p.value) %>%
@@ -30,31 +32,12 @@ reg <- function(d,pathway) {
         mutate(Lvl5=factor(term,levels=rev(term)))
 }
 
-#Plot enrichment results
-plot_results <- function(results,plot_type){
-    if(nrow(results)> 60) {
-        results <- arrange(results,p) %>% head(60)
-    }
-    if(plot_type=="Effect Sizes"){
-        if("z_scores"%in%colnames(results)){
-            return(ggplot(results,aes(Lvl5,z_scores,fill=Significance)) + geom_col() + coord_flip() + theme_classic() + xlab("") + ylab("Z-scores"))
-        }
-        if("estimate"%in%colnames(results)){
-            return(ggplot(results,aes(Lvl5,estimate,col=Significance)) + geom_point() + geom_errorbar(aes(ymax = estimate + std.error, ymin = estimate - std.error)) + coord_flip() + theme_classic() + xlab("") + ylab("Beta"))
-        }
-        if("odds_ratio"%in%colnames(results)){
-            return(ggplot(results,aes(Lvl5,odds_ratio,fill=Significance)) + geom_col() + coord_flip() + theme_classic() + xlab("") + ylab("Odds ratio") + geom_hline(yintercept = 1))
-        }
-    }
-    if(plot_type=="-log10(pvalue)"){
-        return(ggplot(results,aes(Lvl5,-log10(p),fill=Significance)) + geom_col() + coord_flip() + theme_classic() + xlab("") + ylab(expression('-log'[10]*'(pvalue)')))
-    }
-}
-
 #Perform Fisher's exact test to test whether the gene set is enriched among the 10% most specific genes
 fisher_test <- function(d,pathway) {
+    
     d <- d %>% gather(Lvl5,spe_10k,-Gene,-gene_id,-entrez_id) %>% 
-        mutate(spe_10k_top10=ifelse(spe_10k>=quantile(spe_10k,0.9),1,0))
+        mutate(spe_10k_top10=ifelse(spe_10k>=quantile(spe_10k,0.9),1,0)) %>% 
+        select(-spe_10k)
     
     pathway <- pathway  %>% 
         mutate(Pathway=1) %>% 
@@ -72,11 +55,14 @@ fisher_test <- function(d,pathway) {
     d <- left_join(d,pathway,by=colnames(d)[gene_column])
     d <- mutate(d,Pathway=ifelse(is.na(Pathway),0,1))
     
-    fisher <- d %>% group_by(Lvl5) %>% 
-        summarise(
-            odds_ratio=fisher.test(spe_10k_top10,Pathway,alternative="greater")$estimate,
-            p=fisher.test(spe_10k_top10,Pathway,alternative="greater")$p.value
-        ) %>%
+    fisher <- d %>% group_by(Lvl5) %>% nest() %>%
+        mutate(
+            fit = map(data, ~ fisher.test(.x$spe_10k_top10, .x$Pathway,alternative="greater")),
+            tidied = map(fit, tidy)
+        ) %>% ungroup() %>% 
+        unnest(tidied)  %>%
+        select(Lvl5,estimate,p.value) %>% 
+        rename(p=p.value,odds_ratio=estimate) %>%
         mutate(fdr=p.adjust(p,method="fdr")) %>%
         arrange(p) %>%
         mutate(Significance=ifelse(fdr<0.05,"5% FDR", "Not Significant")) %>%
@@ -146,6 +132,27 @@ ewce <- function(d,gene_set,name=NULL,number_of_iteration=9999) {
         mutate(fdr=p.adjust(p,method="fdr")) %>%
         mutate(Significance=ifelse(fdr<0.05,"5% FDR", "Not Significant")) %>%
         mutate(Lvl5=factor(Lvl5,levels=rev(Lvl5)))
+}
+
+#Plot enrichment results
+plot_results <- function(results,plot_type){
+    if(nrow(results)> 60) {
+        results <- arrange(results,p) %>% head(60)
+    }
+    if(plot_type=="Effect Sizes"){
+        if("z_scores"%in%colnames(results)){
+            return(ggplot(results,aes(Lvl5,z_scores,fill=Significance)) + geom_col() + coord_flip() + theme_classic() + xlab("") + ylab("Z-scores"))
+        }
+        if("estimate"%in%colnames(results)){
+            return(ggplot(results,aes(Lvl5,estimate,col=Significance)) + geom_point() + geom_errorbar(aes(ymax = estimate + std.error, ymin = estimate - std.error)) + coord_flip() + theme_classic() + xlab("") + ylab("Beta"))
+        }
+        if("odds_ratio"%in%colnames(results)){
+            return(ggplot(results,aes(Lvl5,odds_ratio,fill=Significance)) + geom_col() + coord_flip() + theme_classic() + xlab("") + ylab("Odds ratio") + geom_hline(yintercept = 1))
+        }
+    }
+    if(plot_type=="-log10(pvalue)"){
+        return(ggplot(results,aes(Lvl5,-log10(p),fill=Significance)) + geom_col() + coord_flip() + theme_classic() + xlab("") + ylab(expression('-log'[10]*'(pvalue)')))
+    }
 }
 
 # Parse dataset name

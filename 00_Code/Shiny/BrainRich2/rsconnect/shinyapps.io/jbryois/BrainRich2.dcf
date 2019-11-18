@@ -1,0 +1,12 @@
+name: BrainRich2
+title: BrainRich2
+username:
+account: jbryois
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 1476941
+bundleId: 2597284
+url: https://jbryois.shinyapps.io/BrainRich2/
+when: 1574075510.39588
+asMultiple: FALSE
+asStatic: FALSE
