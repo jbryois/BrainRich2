@@ -4,7 +4,7 @@ Code of for a shiny app testing whether a gene list is enriched in specific brai
 
 The app can be tested [here](https://jbryois.shinyapps.io/BrainRich2/)
 
-![](www/example.png)
+![](https://github.com/jbryois/BrainRich2/blob/master/00_Code/Shiny/BrainRich2/www/example.png)
 
 If you want to run the app locally you will need to install the following R packages:
 
