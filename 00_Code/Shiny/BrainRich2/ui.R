@@ -6,9 +6,6 @@
 
 library(shiny)
 library(shinythemes)
-library(tidyverse)
-library(readxl)
-library(broom)
 
 # Define UI for application
 ui <- fluidPage(

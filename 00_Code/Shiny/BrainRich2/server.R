@@ -3,8 +3,13 @@
 # Date: 18.11.2019
 
 library(shiny)
-library(tidyverse)
+library(dplyr)
 library(broom)
+library(readxl)
+library(tidyr)
+library(ggplot2)
+library(tibble)
+library(purrr)
 library(R.utils)
 
 # Load file with helper functions
