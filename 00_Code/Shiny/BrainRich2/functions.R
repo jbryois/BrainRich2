@@ -1,16 +1,12 @@
-#Perform linear regression testing whether mean specificity of gene set is higher than average.
+#Perform linear regression. Tests whether mean specificity of gene set is higher than average.
 reg <- function(d,pathway) {
     
     # Scale data (substracts mean and divide by standard deviation)
     d[-c(1,2,3)] <- apply(d[-c(1,2,3)],2,scale)
     
     # Select column with matching names
-    n_genes_symbol <- sum(pathway[[1]]%in%d$Gene)
-    n_genes_ensembl <- sum(pathway[[1]]%in%d$gene_id)
-    n_genes_entrez<- sum(pathway[[1]]%in%d$entrez_id)
+    gene_column <- select_column(pathway,d)
     
-    gene_column <- which.max(c(n_genes_symbol,n_genes_ensembl,n_genes_entrez))
-
     # Only keep genes in Pathway 
     d <- d %>% filter(.[[gene_column]]%in%pathway[[1]])
     
@@ -38,11 +34,7 @@ fisher_test <- function(d,pathway) {
         select(1,Pathway)
     
     # Select column with matching names
-    n_genes_symbol <- sum(pathway[[1]]%in%d$Gene)
-    n_genes_ensembl <- sum(pathway[[1]]%in%d$gene_id)
-    n_genes_entrez<- sum(pathway[[1]]%in%d$entrez_id)
-    
-    gene_column <- which.max(c(n_genes_symbol,n_genes_ensembl,n_genes_entrez))
+    gene_column <- select_column(pathway,d)
     colnames(pathway)[1] <- colnames(d)[gene_column]
     
     # Add Pathway information to specificity data
@@ -68,12 +60,10 @@ ewce <- function(d,gene_set,name=NULL,number_of_iteration=9999) {
     d <- d %>% gather(Lvl5,spe_10k,-Gene,-gene_id,-entrez_id)
     
     # Select column with matching names
-    n_genes_symbol <- sum(gene_set[[1]]%in%d$Gene)
-    n_genes_ensembl <- sum(gene_set[[1]]%in%d$gene_id)
-    n_genes_entrez<- sum(gene_set[[1]]%in%d$entrez_id)
-    
-    gene_column <- which.max(c(n_genes_symbol,n_genes_ensembl,n_genes_entrez))
+    gene_column <- select_column(gene_set,d)
     gene_column_name <- colnames(d)[gene_column]
+    
+    
     colnames(gene_set)[1] <- gene_column_name
     proportion <- d %>% filter(!is.na((get(gene_column_name)))) %>% select(gene_column,Lvl5,spe_10k) %>% spread(Lvl5,spe_10k)
     
@@ -155,6 +145,18 @@ parse_dataset_name <- function(dataset_path){
     name <- gsub(".1to1.norm.txt.gz","", name)
     name <- gsub(".norm.txt.gz","", name)
     name <- gsub(".all.norm.txt.gz","", name)
+}
+
+# Select column with matching names
+select_column <- function(pathway,d){
+    
+    n_genes_symbol <- sum(pathway[[1]]%in%d$Gene)
+    n_genes_ensembl <- sum(pathway[[1]]%in%d$gene_id)
+    n_genes_entrez<- sum(pathway[[1]]%in%d$entrez_id)
+    
+    gene_column <- which.max(c(n_genes_symbol,n_genes_ensembl,n_genes_entrez))
+    
+    return(gene_column)
 }
 
 # Heatmap
