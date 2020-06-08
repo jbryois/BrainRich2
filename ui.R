@@ -24,7 +24,7 @@ ui <- fluidPage(
             h4(strong("Gene Set Enrichment in Brain Cell Types")),
             h5("Please input a file with your gene list (first column)."),
             h5("The app works with ensembl, symbol or entrez gene ids."),
-            h5("An example gene set can be found",a("here",href="https://raw.githubusercontent.com/jbryois/BrainRich2/master/03_Example/cahoy_oligodendrocyte.txt")),
+            h5("An example gene set can be found",a("here",href="https://raw.githubusercontent.com/jbryois/BrainRich2/master/Additional_data/cahoy_oligodendrocyte.txt")),
             
             # Input: Select type of delimiter for file to be uploaded
             radioButtons('sep', 'Separator',
