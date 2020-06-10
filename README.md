@@ -13,5 +13,3 @@ If you want to run the app locally you will need to install the following R pack
 3. shinythemes
 4. readxl
 5. broom
-
-

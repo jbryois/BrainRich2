@@ -52,8 +52,12 @@ ui <- fluidPage(
                                        "Saunders et al. (2018) lvl2" = "Data/Saunders.lvl2.1to1.norm.txt.gz",
                                        "Saunders et al. (2018) lvl3" = "Data/Saunders.lvl3.1to1.norm.txt.gz",
                                        "Habib et al. (2017)" = "Data/Habib.norm.txt.gz",
-                                       "GTex v7" = "Data/GTEx.v7.all.norm.txt.gz", 
-                                       "GTex v8" = "Data/GTEx.v8.all.norm.txt.gz"),
+                                       "GTex v7 (Human)" = "Data/GTEx.v7.all.norm.txt.gz", 
+                                       "GTex v8 (Human)" = "Data/GTEx.v8.all.norm.txt.gz",
+                                       "Allen Brain M1 (Human)" = "Data/AB_human_m1_10x.norm.txt.gz",
+                                       "Allen Brain Multiple Cortical areas (Human)" = "Data/AB_multiple_cortical_areas_smartseq2019.norm.txt.gz",
+                                       "Allen Brain MTG (Human)" = "Data/AB_mtg2018.norm.txt.gz"
+                                       ),
                         selected = "Data/Zeisel.lvl4.1to1.norm.txt.gz"),
             
             # Input: Select plot type
@@ -111,6 +115,9 @@ ui <- fluidPage(
                                      h5(a("Saunders et al. 2018",href="https://www.sciencedirect.com/science/article/pii/S0092867418309553")),
                                      h5(a("GTEx v7",href="https://www.nature.com/articles/nature24277")),
                                      h5(a("GTEx v8",href="https://www.biorxiv.org/content/10.1101/787903v1")),
+                                     h5(a("Allen Brain M1 (Human)",href="https://portal.brain-map.org/atlases-and-data/rnaseq/human-m1-10x")),
+                                     h5(a("Allen Brain Multiple Cortical areas (Human)",href="https://portal.brain-map.org/atlases-and-data/rnaseq/human-multiple-cortical-areas-smart-seq")),
+                                     h5(a("Allen MTG (Human)",href="https://portal.brain-map.org/atlases-and-data/rnaseq/human-mtg-smart-seq")),
                                      h3("Methods:"),
                                      h5(a("EWCE",href="https://www.frontiersin.org/articles/10.3389/fnins.2016.00016/full")),
                                      h3("Code:"),
