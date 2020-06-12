@@ -126,7 +126,7 @@ ui <- fluidPage(
                                      h5(a("Github",href="https://github.com/jbryois/BrainRich2"))
                                  )
                         )
-            ),
+            )
         )
     )
 )
