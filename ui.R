@@ -64,8 +64,8 @@ ui <- fluidPage(
             # Input: Select plot type
             radioButtons("plot_type", label = h3("Plot Type"),
                          choices = list("-log10(pvalue)" = "-log10(pvalue)","Effect Sizes" = "Effect Sizes"), 
-                         selected = "-log10(pvalue)"),
-        ),
+                         selected = "-log10(pvalue)")
+            ),
         
         # Main panel for displaying outputs ----
         mainPanel(
@@ -99,14 +99,16 @@ ui <- fluidPage(
                                      downloadButton('save_res_ewce',label = "Save Table"),
                                      downloadButton('save_plot_ewce',label = "Save Plot"),
                                      plotOutput("ewce")      
-                                 )),
+                                 )
+                        ),
                         tabPanel("Heatmap", fluid = TRUE,
                                  mainPanel(
                                      h5("Heatmap of the specificity metrics by decile."),
                                      h5("1 = lowest decile, 10 = top decile"),
                                      h5("X-axis: genes in the gene set"),
                                      plotOutput("heatmap")      
-                                 )),
+                                 )
+                        ),
                         tabPanel("References", fluid = TRUE,
                                  mainPanel(
                                      h3("Datasets:"),
